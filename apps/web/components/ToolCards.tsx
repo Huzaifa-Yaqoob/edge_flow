@@ -5,7 +5,6 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
-  CardContent,
 } from "@workspace/ui/components/card"
 
 import main_img_tool from "../assets/tools/main_img_tool.png"
@@ -40,7 +39,9 @@ export function ToolCards() {
         <Link href={tool.link} key={tool.title} className="w-full">
           <Card className="flex h-full w-full flex-col">
             <CardHeader className="flex-grow">
-              <div className="relative w-full aspect-video mb-4"> {/* Added aspect-video for responsive height */}
+              <div className="relative mb-4 aspect-video w-full">
+                {" "}
+                {/* Added aspect-video for responsive height */}
                 <Image
                   src={tool.imageSrc}
                   alt={tool.title}
