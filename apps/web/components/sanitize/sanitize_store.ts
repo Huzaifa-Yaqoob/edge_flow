@@ -16,6 +16,7 @@ interface SanitizeState {
   setUploadedFile: (file: File | null) => void
   startScan: (file: File) => Promise<void>
   sanitizePdf: () => Promise<void>
+  redactPdf: (redactions: any[]) => Promise<void>
   initializeWorker: () => void
   terminateWorker: () => void
   resetState: () => void
@@ -94,6 +95,25 @@ export const useSanitizeStore = create<SanitizeState>((set, get) => ({
               loading: false,
               error: null,
             })
+          } else if (action === "PDF_REDACT") {
+            const redactedBytes = toUint8Array(result)
+            const currentScanResult = get().scanResult
+
+            if (!redactedBytes || redactedBytes.length === 0) {
+              set({
+                error: "Redaction completed but produced invalid PDF byte data.",
+                loading: false,
+              })
+              return
+            }
+
+            set({
+              scanResult: currentScanResult
+                ? { ...currentScanResult, pdf_data: new Uint8Array(redactedBytes) }
+                : { pdf_data: new Uint8Array(redactedBytes), findings: [] },
+              loading: false,
+              error: null,
+            })
           } else {
             set({ scanResult: result, loading: false, error: null })
           }
@@ -166,6 +186,39 @@ export const useSanitizeStore = create<SanitizeState>((set, get) => ({
     } catch (e: any) {
       console.error("Error during sanitization:", e)
       set({ error: `Sanitization failed: ${e.message}`, loading: false })
+    }
+  },
+
+  redactPdf: async (redactions) => {
+    const { worker, scanResult } = get()
+    if (!worker) {
+      set({ error: "Worker not initialized.", loading: false })
+      return
+    }
+    if (!scanResult?.pdf_data) {
+      set({ error: "No PDF bytes available for redaction.", loading: false })
+      return
+    }
+
+    const fileBits = toUint8Array(scanResult.pdf_data)
+    if (!fileBits || fileBits.length === 0) {
+      set({ error: "Cannot redact because PDF bytes are missing.", loading: false })
+      return
+    }
+
+    set({ loading: true, error: null })
+
+    try {
+      worker.postMessage({
+        type: "PDF_REDACT",
+        payload: {
+          fileBits: new Uint8Array(fileBits),
+          redactions,
+        },
+      })
+    } catch (e: any) {
+      console.error("Error during redaction:", e)
+      set({ error: `Redaction failed: ${e.message}`, loading: false })
     }
   },
 

@@ -37,6 +37,15 @@ interface RedactionBox {
   source: "user" | "finding"
 }
 
+interface RustRedactionItem {
+  page: number
+  xPct: number
+  yPct: number
+  widthPct: number
+  heightPct: number
+  quote: string
+}
+
 const toPdfRedactionBoxes = (highlights: Highlight[]): RedactionBox[] => {
   return highlights.flatMap((highlight) =>
     highlight.highlightAreas.map((area) => {
@@ -54,8 +63,19 @@ const toPdfRedactionBoxes = (highlights: Highlight[]): RedactionBox[] => {
   )
 }
 
+const toRustRedactions = (boxes: RedactionBox[]): RustRedactionItem[] => {
+  return boxes.map((box) => ({
+    page: box.page,
+    xPct: box.xPct,
+    yPct: box.yPct,
+    widthPct: box.widthPct,
+    heightPct: box.heightPct,
+    quote: box.quote,
+  }))
+}
+
 export function PdfPreview() {
-  const { scanResult } = useSanitizeStore()
+  const { scanResult, redactPdf, loading } = useSanitizeStore()
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [highlights, setHighlights] = useState<Highlight[]>([])
   const [message, setMessage] = useState("")
@@ -316,15 +336,18 @@ export function PdfPreview() {
         <div className="mb-4">
           <button
             className="w-full rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700"
-            onClick={() => {
-              const payload = [
+            onClick={async () => {
+              const payloadBoxes = [
                 ...toPdfRedactionBoxes(highlights),
                 ...Array.from(findingBoxesRef.current.values()),
               ]
-              console.log("Redaction payload:", payload)
+              const redactions = toRustRedactions(payloadBoxes)
+              console.log("Redaction payload:", redactions)
+              await redactPdf(redactions)
             }}
+            disabled={loading}
           >
-            Radicate
+            {loading ? "Processing..." : "Radicate"}
           </button>
         </div>
         <div className="mb-6">

@@ -1,6 +1,7 @@
 // workers/media.worker.ts
 import init, {
   initial_sanitize_and_get_sensitive_data,
+  redact_pdf,
   sanitize_pdf,
   init_panic_hook,
 } from "@workspace/core-wasm/pkg"
@@ -48,6 +49,17 @@ self.onmessage = async (e: MessageEvent) => {
       case "PDF_ONLY_SANITIZE": {
         const cleanBytes = sanitize_pdf(payload)
         self.postMessage({ type: "SUCCESS", result: cleanBytes, action: type }) // Added action for store
+        break
+      }
+
+      case "PDF_REDACT": {
+        const { fileBits, redactions } = payload
+        const redactedBytes = redact_pdf(fileBits, redactions)
+        self.postMessage({
+          type: "SUCCESS",
+          result: redactedBytes,
+          action: type,
+        })
         break
       }
 

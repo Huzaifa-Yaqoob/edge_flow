@@ -1,7 +1,8 @@
 mod pdf;
 
-use wasm_bindgen::prelude::*;
+use lopdf::Document;
 use serde::Serialize;
+use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen(typescript_custom_section)]
 const TS_APPEND_CONTENT: &'static str = r#"
@@ -14,6 +15,15 @@ export interface ScanResult {
 export interface ProcessedResponse {
     pdf_data: Uint8Array;
     findings: ScanResult[];
+}
+
+export interface RedactionItem {
+    page: number;
+    xPct: number;
+    yPct: number;
+    widthPct: number;
+    heightPct: number;
+    quote: string;
 }
 "#;
 
@@ -36,7 +46,7 @@ pub fn sanitize_pdf(file_bits: &[u8]) -> Vec<u8> {
 
 
 // 2. The JS-facing wrapper
-#[wasm_bindgen(typescript_type = "ScanResult")]
+#[wasm_bindgen]
 pub fn get_sensitive_data(file_bits: &[u8]) -> Result<JsValue, JsValue> {
     let results = pdf::scanner::scan_content(file_bits);
 
@@ -55,7 +65,7 @@ struct ProcessedResponse {
 
 
 
-#[wasm_bindgen(typescript_type = "ProcessedResponse")]
+#[wasm_bindgen]
 pub fn initial_sanitize_and_get_sensitive_data(file_bits: &[u8]) -> Result<JsValue, JsValue> {
     // 1. Scrub the PDF (returns Vec<u8>)
     let sanitized_pdf = pdf::scrubber::run_sanitization(file_bits);
@@ -71,8 +81,23 @@ pub fn initial_sanitize_and_get_sensitive_data(file_bits: &[u8]) -> Result<JsVal
     };
 
     // 4. Convert the whole package to a JS Object
-
-    pub fn get_type_hint() {}
     Ok(serde_wasm_bindgen::to_value(&response)
         .map_err(|e| JsValue::from_str(&e.to_string()))?)
+}
+
+#[wasm_bindgen]
+pub fn redact_pdf(file_bits: &[u8], redactions: JsValue) -> Result<Vec<u8>, JsValue> {
+    let items: Vec<pdf::radication::RedactionItem> = serde_wasm_bindgen::from_value(redactions)
+        .map_err(|e| JsValue::from_str(&format!("Invalid redactions payload: {e}")))?;
+
+    let mut doc = Document::load_mem(file_bits)
+        .map_err(|e| JsValue::from_str(&format!("Failed to load PDF: {e}")))?;
+
+    pdf::radication::apply_redactions(&mut doc, items);
+
+    let mut out = Vec::new();
+    doc.save_to(&mut out)
+        .map_err(|e| JsValue::from_str(&format!("Failed to save redacted PDF: {e}")))?;
+
+    Ok(out)
 }
