@@ -1,38 +1,31 @@
-use lopdf::Document;
+use lopdf::{Document, content::Operation};
 use regex::Regex;
 use serde::Serialize;
 
-// This struct will send the found items back to Next.js
 #[derive(Serialize)]
 pub struct ScanResult {
     pub category: String,
     pub value: String,
     pub page: u32,
 }
-
 pub fn scan_content(input: &[u8]) -> Vec<ScanResult> {
     let doc = Document::load_mem(input).expect("Failed to load PDF");
     let mut results = Vec::new();
 
-    // 1. Define our Patterns (CNIC, Email, Phone)
-    // Note: Patterns are specific to the Pakistani market/global standards
     let patterns = [
         ("CNIC", r"\d{5}-\d{7}-\d{1}"),
         ("Email", r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"),
-        ("Phone", r"(\+92|0|92)[0-9]{10}"),
     ];
 
-    // 2. Iterate through pages
-    for (page_num, page_id) in doc.get_pages() {
-        // Extract text from the specific page
-        if let Ok(text) = doc.get_page_content(page_id).and_then(|_| doc.extract_text(&[page_num])) {
-
+    for (page_num, _) in doc.get_pages() {
+        // Use the high-level extractor that handles encoding automatically
+        if let Ok(text) = doc.extract_text(&[page_num]) {
             for (label, pattern) in patterns.iter() {
                 let re = Regex::new(pattern).unwrap();
-                for cap in re.find_iter(&text) {
+                for mat in re.find_iter(&text) {
                     results.push(ScanResult {
                         category: label.to_string(),
-                        value: cap.as_str().to_string(),
+                        value: mat.as_str().to_string(),
                         page: page_num,
                     });
                 }
@@ -41,6 +34,7 @@ pub fn scan_content(input: &[u8]) -> Vec<ScanResult> {
     }
     results
 }
+
 
 #[cfg(test)]
 mod tests {
