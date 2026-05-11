@@ -5,6 +5,10 @@
   "files": [
     "pkg"
   ],
+  "exports": {
+    "./pkg": "./pkg/index.js",
+    "./wasm": "./pkg/core_wasm_bg.wasm"
+  },
   "scripts": {
     "build": "wasm-pack build --target web --out-dir pkg"
   }
