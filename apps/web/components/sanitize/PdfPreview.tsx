@@ -37,6 +37,9 @@ export function PdfPreview() {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [highlights, setHighlights] = useState<Highlight[]>([])
   const [message, setMessage] = useState("")
+  const [removedFindingValues, setRemovedFindingValues] = useState<Set<string>>(
+    new Set()
+  )
 
   const renderHighlightTarget = useCallback(
     (props: RenderHighlightTargetProps) => (
@@ -128,28 +131,20 @@ export function PdfPreview() {
               style={Object.assign(
                 {},
                 {
-                  background: highlight.isFinding
-                    ? "rgba(239, 68, 68, 0.4)"
-                    : "rgba(251, 191, 36, 0.4)",
+                  background: "rgba(239, 68, 68, 0.4)",
                   cursor: "pointer",
-                  border: highlight.isFinding
-                    ? "1px solid rgba(239, 68, 68, 0.6)"
-                    : "1px solid rgba(251, 191, 36, 0.6)",
+                  border: "1px solid rgba(239, 68, 68, 0.6)",
                 },
                 props.getCssProperties(area, props.rotation)
               )}
               onClick={() => {
-                if (!highlight.isFinding) {
-                  if (
-                    confirm(
-                      "Remove this highlight?\n\n" +
-                        highlight.quote.substring(0, 100)
-                    )
-                  ) {
-                    setHighlights(
-                      highlights.filter((h) => h.id !== highlight.id)
-                    )
-                  }
+                if (
+                  confirm(
+                    "Remove this highlight?\n\n" +
+                      highlight.quote.substring(0, 100)
+                  )
+                ) {
+                  setHighlights(highlights.filter((h) => h.id !== highlight.id))
                 }
               }}
               title={
@@ -168,21 +163,33 @@ export function PdfPreview() {
     renderHighlights,
   })
 
+  useEffect(() => {
+    setRemovedFindingValues(new Set())
+  }, [scanResult?.findings])
+
   const findingKeywords = useMemo<string[]>(
     () => {
       const raw =
         scanResult?.findings
           ?.map((finding: any) => String(finding?.value ?? "").trim())
-          .filter((text: string) => text.length > 0) ?? []
+          .filter(
+            (text: string) =>
+              text.length > 0 && !removedFindingValues.has(text)
+          ) ?? []
       return Array.from(new Set(raw))
     },
-    [scanResult?.findings]
+    [scanResult?.findings, removedFindingValues]
   )
 
   const searchPluginInstance = searchPlugin({
     keyword: findingKeywords,
   })
   const defaultLayoutPluginInstance = defaultLayoutPlugin()
+
+  const findingKeywordsSignature = useMemo(
+    () => findingKeywords.join("||"),
+    [findingKeywords]
+  )
 
   useEffect(() => {
     if (!scanResult?.pdf_data) {
@@ -252,7 +259,17 @@ export function PdfPreview() {
               {scanResult.findings.map((finding: any, index: any) => (
                 <li
                   key={index}
-                  className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm dark:border-red-700 dark:bg-red-900/20"
+                  className="cursor-pointer rounded-lg border border-red-300 bg-red-50 p-3 text-sm dark:border-red-700 dark:bg-red-900/20"
+                  onClick={() => {
+                    const value = String(finding?.value ?? "").trim()
+                    if (!value) return
+                    setRemovedFindingValues((prev) => {
+                      const next = new Set(prev)
+                      next.add(value)
+                      return next
+                    })
+                  }}
+                  title="Click to remove this finding highlight"
                 >
                   <div className="font-semibold text-red-700 dark:text-red-300">
                     {finding.category}
@@ -272,7 +289,7 @@ export function PdfPreview() {
         </div>
 
         <div>
-          <h3 className="mb-3 text-lg font-semibold text-yellow-600 dark:text-yellow-400">
+          <h3 className="mb-3 text-lg font-semibold text-red-600 dark:text-red-400">
             ✏️ My Highlights ({highlights.filter((h) => !h.isFinding).length})
           </h3>
           {highlights.filter((h) => !h.isFinding).length > 0 ? (
@@ -282,7 +299,7 @@ export function PdfPreview() {
                 .map((highlight) => (
                   <li
                     key={highlight.id}
-                    className="cursor-pointer rounded-lg border border-yellow-300 bg-yellow-50 p-3 text-sm transition-all hover:bg-yellow-100 dark:border-yellow-700 dark:bg-yellow-900/20 dark:hover:bg-yellow-900/30"
+                    className="cursor-pointer rounded-lg border border-red-300 bg-red-50 p-3 text-sm transition-all hover:bg-red-100 dark:border-red-700 dark:bg-red-900/20 dark:hover:bg-red-900/30"
                     onClick={() => {
                       if (
                         confirm(
@@ -333,6 +350,7 @@ export function PdfPreview() {
           <div className="h-full w-full">
             <Worker workerUrl={PDF_WORKER_URL}>
               <Viewer
+                key={`viewer-${findingKeywordsSignature}-${pdfUrl}`}
                 fileUrl={pdfUrl}
                 plugins={[
                   searchPluginInstance,
