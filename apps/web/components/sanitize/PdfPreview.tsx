@@ -1,11 +1,10 @@
 "use client"
-import React, { useState, useEffect, useMemo, useCallback } from "react"
+import React, { useState, useEffect, useCallback, useRef } from "react"
 import { Viewer, Worker } from "@react-pdf-viewer/core"
 import { defaultLayoutPlugin } from "@react-pdf-viewer/default-layout"
 import { searchPlugin } from "@react-pdf-viewer/search"
 import {
   highlightPlugin,
-  MessageIcon,
   type RenderHighlightTargetProps,
   type RenderHighlightsProps,
   type HighlightArea,
@@ -27,6 +26,34 @@ interface Highlight {
   isFinding?: boolean
 }
 
+interface RedactionBox {
+  page: number
+  xPct: number
+  yPct: number
+  widthPct: number
+  heightPct: number
+  quote: string
+  note: string
+  source: "user" | "finding"
+}
+
+const toPdfRedactionBoxes = (highlights: Highlight[]): RedactionBox[] => {
+  return highlights.flatMap((highlight) =>
+    highlight.highlightAreas.map((area) => {
+      return {
+        page: area.pageIndex + 1,
+        xPct: area.left,
+        yPct: area.top,
+        widthPct: area.width,
+        heightPct: area.height,
+        quote: highlight.quote,
+        note: highlight.content,
+        source: "user",
+      }
+    })
+  )
+}
+
 export function PdfPreview() {
   const { scanResult } = useSanitizeStore()
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
@@ -35,6 +62,7 @@ export function PdfPreview() {
   const [removedFindingValues, setRemovedFindingValues] = useState<Set<string>>(
     new Set()
   )
+  const findingBoxesRef = useRef<Map<string, RedactionBox>>(new Map())
 
   const renderHighlightTarget = useCallback(
     (props: RenderHighlightTargetProps) => (
@@ -156,25 +184,75 @@ export function PdfPreview() {
     setRemovedFindingValues(new Set())
   }, [scanResult?.findings])
 
-  const findingKeywords = useMemo<string[]>(() => {
-    const raw =
+  const findingKeywords: string[] = Array.from(
+    new Set(
       scanResult?.findings
         ?.map((finding: any) => String(finding?.value ?? "").trim())
         .filter(
           (text: string) => text.length > 0 && !removedFindingValues.has(text)
         ) ?? []
-    return Array.from(new Set(raw))
-  }, [scanResult?.findings, removedFindingValues])
+    )
+  )
+
+  const defaultLayoutPluginInstance = defaultLayoutPlugin()
+
+  const findingKeywordsSignature = findingKeywords.join("||")
+
+  useEffect(() => {
+    findingBoxesRef.current.clear()
+  }, [findingKeywordsSignature, pdfUrl])
+
+  const renderSearchHighlights = useCallback((props: any) => {
+    const areas = (props?.highlightAreas ?? []) as Array<any>
+
+    return (
+      <>
+        {areas.map((area, index) => {
+          const keywordValue = String(area?.keywordStr ?? "").trim()
+          const box: RedactionBox = {
+            page: (area?.pageIndex ?? 0) + 1,
+            xPct: area?.left ?? 0,
+            yPct: area?.top ?? 0,
+            widthPct: area?.width ?? 0,
+            heightPct: area?.height ?? 0,
+            quote: keywordValue,
+            note: "",
+            source: "finding",
+          }
+          const key = `${box.page}-${box.xPct}-${box.yPct}-${box.widthPct}-${box.heightPct}-${box.quote}`
+          findingBoxesRef.current.set(key, box)
+
+          return (
+            <div
+              key={`${area.pageIndex}-${index}`}
+              style={{
+                ...props.getCssProperties(area),
+                position: "absolute",
+                background: "rgba(239, 68, 68, 0.35)",
+                border: "1px solid rgba(239, 68, 68, 0.7)",
+                borderRadius: "2px",
+                cursor: "pointer",
+              }}
+              onClick={() => {
+                if (!keywordValue) return
+                setRemovedFindingValues((prev) => {
+                  const next = new Set(prev)
+                  next.add(keywordValue)
+                  return next
+                })
+              }}
+              title={`Finding: ${keywordValue}`}
+            />
+          )
+        })}
+      </>
+    )
+  }, [])
 
   const searchPluginInstance = searchPlugin({
     keyword: findingKeywords,
+    renderHighlights: renderSearchHighlights,
   })
-  const defaultLayoutPluginInstance = defaultLayoutPlugin()
-
-  const findingKeywordsSignature = useMemo(
-    () => findingKeywords.join("||"),
-    [findingKeywords]
-  )
 
   useEffect(() => {
     if (!scanResult?.pdf_data) {
@@ -235,6 +313,20 @@ export function PdfPreview() {
         }
       `}</style>
       <div className="w-80 flex-shrink-0 overflow-y-auto border-r bg-white p-4 dark:bg-gray-900">
+        <div className="mb-4">
+          <button
+            className="w-full rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700"
+            onClick={() => {
+              const payload = [
+                ...toPdfRedactionBoxes(highlights),
+                ...Array.from(findingBoxesRef.current.values()),
+              ]
+              console.log("Redaction payload:", payload)
+            }}
+          >
+            Radicate
+          </button>
+        </div>
         <div className="mb-6">
           <h3 className="mb-3 text-lg font-semibold text-red-600 dark:text-red-400">
             🔍 Findings ({scanResult.findings?.length || 0})
