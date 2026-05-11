@@ -1,5 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  turbopack: {
+    resolveAlias: {
+      canvas: "./lib/empty-module.js",
+    },
+  },
+
   // 1. Monorepo Transpilation
   // Add all workspace packages that need to be compiled by Next.js here
   transpilePackages: ["@workspace/ui", "@workspace/core-wasm"],
@@ -17,6 +23,11 @@ const nextConfig = {
       test: /\.wasm$/,
       type: "asset/resource",
     })
+
+    config.resolve.alias = {
+      ...(config.resolve.alias || {}),
+      canvas: false,
+    }
 
     return config
   },

@@ -21,6 +21,24 @@ interface SanitizeState {
   resetState: () => void
 }
 
+const toUint8Array = (data: unknown): Uint8Array | null => {
+  if (!data) return null
+  if (data instanceof Uint8Array) return data
+  if (data instanceof ArrayBuffer) return new Uint8Array(data)
+  if (ArrayBuffer.isView(data)) {
+    return new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
+  }
+  if (Array.isArray(data)) return new Uint8Array(data)
+  if (typeof data === "object") {
+    const record = data as Record<string, unknown>
+    const nested = record.data
+    if (nested instanceof Uint8Array) return nested
+    if (nested instanceof ArrayBuffer) return new Uint8Array(nested)
+    if (Array.isArray(nested)) return new Uint8Array(nested)
+  }
+  return null
+}
+
 export const useSanitizeStore = create<SanitizeState>((set, get) => ({
   uploadedFile: null,
   scanResult: null,
@@ -57,6 +75,25 @@ export const useSanitizeStore = create<SanitizeState>((set, get) => ({
               type: "application/pdf",
             })
             set({ sanitizedBlob: blob, loading: false, error: null })
+          } else if (action === "PDF_INITIAL_SCAN") {
+            const pdfBytes = toUint8Array(result?.pdf_data)
+            if (!pdfBytes || pdfBytes.length === 0) {
+              set({
+                error: "Scan completed but produced invalid PDF byte data.",
+                loading: false,
+                scanResult: null,
+              })
+              return
+            }
+
+            set({
+              scanResult: {
+                ...result,
+                pdf_data: new Uint8Array(pdfBytes),
+              },
+              loading: false,
+              error: null,
+            })
           } else {
             set({ scanResult: result, loading: false, error: null })
           }

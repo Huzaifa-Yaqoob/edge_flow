@@ -7,25 +7,24 @@ import { useSanitizeStore } from "./sanitize_store" // Import the Zustand store
 export function PdfUploader() {
   const {
     initializeWorker,
+    terminateWorker,
     startScan,
     uploadedFile,
     loading,
     error,
     scanResult,
     resetState,
-    worker, // Access the worker instance from the store
   } = useSanitizeStore()
 
   useEffect(() => {
     initializeWorker()
-    // Cleanup worker on component unmount
+    // Cleanup worker on uploader unmount.
+    // Do not reset store here, otherwise scanResult is cleared during
+    // transition to the preview screen.
     return () => {
-      if (worker) {
-        worker.terminate()
-      }
-      resetState() // Reset store state on unmount
+      terminateWorker()
     }
-  }, [initializeWorker, worker, resetState]) // Depend on worker and resetState to ensure cleanup
+  }, [initializeWorker, terminateWorker])
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files ? event.target.files[0] : null
