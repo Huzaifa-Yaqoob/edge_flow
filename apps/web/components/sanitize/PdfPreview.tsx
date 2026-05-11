@@ -1,10 +1,5 @@
 "use client"
-import React, {
-  useState,
-  useEffect,
-  useMemo,
-  useCallback,
-} from "react"
+import React, { useState, useEffect, useMemo, useCallback } from "react"
 import { Viewer, Worker } from "@react-pdf-viewer/core"
 import { defaultLayoutPlugin } from "@react-pdf-viewer/default-layout"
 import { searchPlugin } from "@react-pdf-viewer/search"
@@ -75,6 +70,7 @@ export function PdfPreview() {
               borderRadius: "4px",
               padding: "4px 8px",
               width: "200px",
+              color: "black",
             }}
           />
           <button
@@ -100,19 +96,7 @@ export function PdfPreview() {
               setMessage("")
             }}
           >
-            Highlight
-          </button>
-          <button
-            style={{
-              background: "#fff",
-              border: "1px solid #ccc",
-              borderRadius: "4px",
-              cursor: "pointer",
-              padding: "8px 12px",
-            }}
-            onClick={props.cancel}
-          >
-            Cancel
+            Protect
           </button>
         </div>
       </div>
@@ -120,43 +104,48 @@ export function PdfPreview() {
     [message, highlights]
   )
 
-  const renderHighlights = useCallback((props: RenderHighlightsProps) => (
-    <div>
-      {highlights.map((highlight) =>
-        highlight.highlightAreas
-          .filter((area) => area.pageIndex === props.pageIndex)
-          .map((area, idx) => (
-            <div
-              key={`${highlight.id}-${idx}`}
-              style={Object.assign(
-                {},
-                {
-                  background: "rgba(239, 68, 68, 0.4)",
-                  cursor: "pointer",
-                  border: "1px solid rgba(239, 68, 68, 0.6)",
-                },
-                props.getCssProperties(area, props.rotation)
-              )}
-              onClick={() => {
-                if (
-                  confirm(
-                    "Remove this highlight?\n\n" +
-                      highlight.quote.substring(0, 100)
-                  )
-                ) {
-                  setHighlights(highlights.filter((h) => h.id !== highlight.id))
+  const renderHighlights = useCallback(
+    (props: RenderHighlightsProps) => (
+      <div>
+        {highlights.map((highlight) =>
+          highlight.highlightAreas
+            .filter((area) => area.pageIndex === props.pageIndex)
+            .map((area, idx) => (
+              <div
+                key={`${highlight.id}-${idx}`}
+                style={Object.assign(
+                  {},
+                  {
+                    background: "rgba(239, 68, 68, 0.4)",
+                    cursor: "pointer",
+                    border: "1px solid rgba(239, 68, 68, 0.6)",
+                  },
+                  props.getCssProperties(area, props.rotation)
+                )}
+                onClick={() => {
+                  if (
+                    confirm(
+                      "Remove this highlight?\n\n" +
+                        highlight.quote.substring(0, 100)
+                    )
+                  ) {
+                    setHighlights(
+                      highlights.filter((h) => h.id !== highlight.id)
+                    )
+                  }
+                }}
+                title={
+                  highlight.isFinding
+                    ? `Finding: ${highlight.content}`
+                    : `User highlight${highlight.content ? ": " + highlight.content : ""}`
                 }
-              }}
-              title={
-                highlight.isFinding
-                  ? `Finding: ${highlight.content}`
-                  : `User highlight${highlight.content ? ": " + highlight.content : ""}`
-              }
-            />
-          ))
-      )}
-    </div>
-  ), [highlights])
+              />
+            ))
+        )}
+      </div>
+    ),
+    [highlights]
+  )
 
   const highlightPluginInstance = highlightPlugin({
     renderHighlightTarget,
@@ -167,19 +156,15 @@ export function PdfPreview() {
     setRemovedFindingValues(new Set())
   }, [scanResult?.findings])
 
-  const findingKeywords = useMemo<string[]>(
-    () => {
-      const raw =
-        scanResult?.findings
-          ?.map((finding: any) => String(finding?.value ?? "").trim())
-          .filter(
-            (text: string) =>
-              text.length > 0 && !removedFindingValues.has(text)
-          ) ?? []
-      return Array.from(new Set(raw))
-    },
-    [scanResult?.findings, removedFindingValues]
-  )
+  const findingKeywords = useMemo<string[]>(() => {
+    const raw =
+      scanResult?.findings
+        ?.map((finding: any) => String(finding?.value ?? "").trim())
+        .filter(
+          (text: string) => text.length > 0 && !removedFindingValues.has(text)
+        ) ?? []
+    return Array.from(new Set(raw))
+  }, [scanResult?.findings, removedFindingValues])
 
   const searchPluginInstance = searchPlugin({
     keyword: findingKeywords,
