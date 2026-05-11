@@ -6,8 +6,14 @@ import init, {
 self.onmessage = async (e: MessageEvent) => {
   const { bytes } = e.data
 
-  // Initialize inside the worker thread
-  await init()
+  try {
+    await init()
+  } catch (error: any) {
+    const message = String(error?.message ?? error ?? "")
+    const match = message.match(/Failed to parse URL from\s+(\S+)/)
+    if (!match?.[1]) throw error
+    await init(new URL(match[1], self.location.origin).toString())
+  }
 
   try {
     const result = initial_sanitize_and_get_sensitive_data(bytes)
