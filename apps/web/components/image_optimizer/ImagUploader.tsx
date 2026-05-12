@@ -5,8 +5,6 @@ import { useDropzone } from "react-dropzone"
 import Image from "next/image"
 import { useOptimizerStore } from "./optimizer_store"
 import { Button } from "@workspace/ui/components/button"
-import { Slider } from "@workspace/ui/components/slider"
-import { Label } from "@workspace/ui/components/label"
 import {
   Card,
   CardContent,
@@ -19,11 +17,9 @@ import { Loader2, XCircle } from "lucide-react"
 export function ImagUploader() {
   const {
     originalImages,
-    quality,
     isOptimizing,
     error,
     addImages,
-    setQuality,
     optimizeImages,
     clearImages,
     initializeWorker,
@@ -116,26 +112,6 @@ export function ImagUploader() {
 
         {originalImages.length > 0 && (
           <div className="space-y-4">
-            <Label htmlFor="quality-slider">
-              Optimization Quality: {quality}%
-            </Label>
-            <Slider
-              id="quality-slider"
-              min={1}
-              max={100}
-              step={1}
-              value={[quality]}
-              onValueChange={(value) => {
-                if (typeof value === "number") {
-                  // If it's just a number, use it directly
-                  setQuality(value)
-                } else if (Array.isArray(value)) {
-                  // If it's an array (or readonly array), grab the first index
-                  setQuality(value[0])
-                }
-              }}
-              className="w-full"
-            />
             <Button
               onClick={optimizeImages}
               disabled={isOptimizing || originalImages.length === 0}
