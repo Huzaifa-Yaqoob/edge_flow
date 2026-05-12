@@ -1,0 +1,6 @@
+[target.wasm32-unknown-unknown]
+linker = "rust-lld"
+
+[env]
+CC_wasm32-unknown-unknown = "/usr/lib/emscripten/emcc"
+AR_wasm32-unknown-unknown = "/usr/lib/emscripten/emar"

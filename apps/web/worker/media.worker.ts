@@ -3,6 +3,7 @@ import init, {
   initial_sanitize_and_get_sensitive_data,
   redact_pdf,
   sanitize_pdf,
+  wasm_generate_bundle, // Added wasm_generate_bundle
   init_panic_hook,
 } from "@workspace/core-wasm/pkg"
 
@@ -58,6 +59,17 @@ self.onmessage = async (e: MessageEvent) => {
         self.postMessage({
           type: "SUCCESS",
           result: redactedBytes,
+          action: type,
+        })
+        break
+      }
+
+      case "IMAGE_OPTIMIZE": {
+        const { fileBits, quality } = payload
+        const optimizedImage = wasm_generate_bundle(fileBits, quality)
+        self.postMessage({
+          type: "SUCCESS",
+          result: optimizedImage,
           action: type,
         })
         break

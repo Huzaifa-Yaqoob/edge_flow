@@ -1,4 +1,5 @@
 mod pdf;
+pub mod img;
 
 use lopdf::Document;
 use serde::Serialize;
@@ -100,4 +101,10 @@ pub fn redact_pdf(file_bits: &[u8], redactions: JsValue) -> Result<Vec<u8>, JsVa
         .map_err(|e| JsValue::from_str(&format!("Failed to save redacted PDF: {e}")))?;
 
     Ok(out)
+}
+
+#[wasm_bindgen]
+pub fn wasm_generate_bundle(raw_data: &[u8], quality: f32) -> JsValue {
+    let bundle = img::optimizer::generate_responsive_bundle(raw_data, quality);
+    serde_wasm_bindgen::to_value(&bundle).unwrap()
 }
