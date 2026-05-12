@@ -65,12 +65,15 @@ self.onmessage = async (e: MessageEvent) => {
       }
 
       case "IMAGE_OPTIMIZE": {
-        const { fileBits, quality } = payload
+        const { fileBits, quality, originalId, fileName, originalSize } = payload
         const optimizedImage = wasm_generate_bundle(fileBits, quality)
         self.postMessage({
           type: "SUCCESS",
           result: optimizedImage,
           action: type,
+          originalId,
+          fileName,
+          originalSize,
         })
         break
       }

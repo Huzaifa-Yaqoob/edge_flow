@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useCallback, useState } from "react"
+import React, { useCallback, useEffect } from "react"
 import { useDropzone } from "react-dropzone"
 import Image from "next/image"
 import { useOptimizerStore } from "./optimizer_store"
@@ -26,7 +26,12 @@ export function ImagUploader() {
     setQuality,
     optimizeImages,
     clearImages,
+    initializeWorker,
   } = useOptimizerStore()
+
+  useEffect(() => {
+    initializeWorker()
+  }, [initializeWorker])
 
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
@@ -83,9 +88,8 @@ export function ImagUploader() {
                     alt={image.file.name}
                     width={100}
                     height={100}
-                    layout="responsive"
-                    objectFit="cover"
-                    className="rounded-md"
+                    unoptimized
+                    className="h-auto w-full rounded-md object-cover"
                   />
                   <p className="mt-1 truncate text-center text-xs">
                     {image.file.name}

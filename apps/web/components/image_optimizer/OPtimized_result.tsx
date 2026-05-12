@@ -52,13 +52,16 @@ export function OptimizedResult() {
                   <Image
                     src={image.dataUrl}
                     alt={`Optimized ${image.fileName}`}
-                    layout="fill"
-                    objectFit="contain"
-                    className="rounded-md bg-gray-100"
+                    fill
+                    unoptimized
+                    className="rounded-md bg-gray-100 object-contain"
                   />
                 </div>
                 <p className="truncate text-sm font-semibold">
                   {image.fileName}
+                </p>
+                <p className="text-xs text-gray-500">
+                  Variant: {image.sizeLabel} ({image.width}px)
                 </p>
                 <p className="text-xs text-gray-500">
                   Original: {formatBytes(image.originalSize)}
@@ -76,7 +79,7 @@ export function OptimizedResult() {
                   render={
                     <a
                       href={image.dataUrl}
-                      download={`optimized_${image.fileName}`}
+                      download={`optimized_${image.sizeLabel}_${image.fileName.replace(/\.(png|jpe?g)$/i, "")}.webp`}
                     >
                       <Download className="mr-2 h-4 w-4" /> Download
                     </a>
