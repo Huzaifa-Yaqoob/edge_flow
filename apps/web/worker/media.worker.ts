@@ -4,6 +4,7 @@ import init, {
   redact_pdf,
   sanitize_pdf,
   wasm_generate_bundle, // Added wasm_generate_bundle
+  wasm_raster_to_svg,
   init_panic_hook,
 } from "@workspace/core-wasm/pkg"
 
@@ -74,6 +75,18 @@ self.onmessage = async (e: MessageEvent) => {
           originalId,
           fileName,
           originalSize,
+        })
+        break
+      }
+
+      case "RASTER_TO_SVG": {
+        const { fileBits, iterations, fileName } = payload
+        const svgString = wasm_raster_to_svg(fileBits, iterations ?? null)
+        self.postMessage({
+          type: "SUCCESS",
+          result: svgString,
+          action: type,
+          fileName,
         })
         break
       }
